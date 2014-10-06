@@ -1,0 +1,4 @@
+#!/bin/bash
+set -x
+sudo cp /home/henry/rpmbuild/BUILD/gst-plugins-bad-0.10.23/gst/hkeffects/.libs/libgsthkeffects.so /usr/lib64/gstreamer-0.10/
+master_control.py videotestsrc pattern=18 foreground-color=4294901760 background-color=0 ! video/x-raw-yuv, width=640, height=480 ! videomixer name=mix sink_1::ypos=-10 sink_1::alpha=1 sink_1::zorder=3 sink_2::xpos=50 sink_2::ypos=100 sink_2::zorder=2 ! ffmpegcolorspace ! track ! ffmpegcolorspace ! xvimagesink videotestsrc pattern=18 foreground-color=4294901760 background-color=0 horizontal-speed=5 ! video/x-raw-yuv, width=640, height=480 ! mix. videotestsrc pattern=18 foreground-color=4294901760 background-color=0 horizontal-speed=1 ! video/x-raw-yuv, width=640, height=480 ! mix. videotestsrc pattern=13 horizontal-speed=1 ! video/x-raw-yuv, width=640, height=480 ! mix. &

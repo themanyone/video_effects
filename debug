@@ -1,0 +1,4 @@
+#!/bin/bash
+set +x
+sudo cp /home/henry/rpmbuild/BUILD/gst-plugins-bad-0.10.23/gst/hkeffects/.libs/libgsthkeffects.so /usr/lib64/gstreamer-0.10/
+gdb -tui -args gst-launch -e "videotestsrc ! track ! ffmpegcolorspace ! autovideosink"
