@@ -142,10 +142,10 @@ gst_track_class_init (GstTrackClass * klass)
           "Tracking color difference threshold", 0, 600,
           DEFAULT_THRESHOLD,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_OBJECTS,
+  g_object_class_install_property (gobject_class, PROP_MAX_OBJECTS,
       g_param_spec_uint ("objects", "Objects",
           "Max number of objects to track", 1, MAX_OBJECTS,
-          DEFAULT_OBJECTS,
+          PROP_MAX_OBJECTS,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_SIZE,
       g_param_spec_uint ("size", "Size",
@@ -182,7 +182,7 @@ gst_track_init (GstTrack * track,
   track->fgcolor0 = DEFAULT_COLOR;
   track->fgcolor1 = DEFAULT_COLOR;
   track->threshold = DEFAULT_THRESHOLD;
-  track->objects = DEFAULT_OBJECTS;
+  track->max_objects = PROP_MAX_OBJECTS;
 }
 
 void
@@ -218,8 +218,8 @@ gst_track_set_property (GObject * object, guint property_id,
     case PROP_THRESHOLD:
       track->threshold = g_value_get_uint(value);
       break;
-    case PROP_OBJECTS:
-      track->objects = g_value_get_uint(value);
+    case PROP_MAX_OBJECTS:
+      track->max_objects = g_value_get_uint(value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -258,8 +258,8 @@ gst_track_get_property (GObject * object, guint property_id,
     case PROP_THRESHOLD:
       g_value_set_uint (value, track->threshold);
       break;
-    case PROP_OBJECTS:
-      g_value_set_uint (value, track->objects);
+    case PROP_MAX_OBJECTS:
+      g_value_set_uint (value, track->max_objects);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -306,7 +306,6 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
   guint objcount = 0,
     size = track->size,
     rect[4]={0}, *point;
-  gchar *numstr;
   GstStructure *s;
   hkVidLayout vl;
   // copy video filter data into hkVidLayout struct
@@ -330,23 +329,13 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
   rgb2yuv(0xffffff, mcolor);
   for (int i=0;i<vl.height;i+=size){
     for (int j=0;j<vl.width;j+=size){
-      if (objcount >= track->objects){
+      if (objcount >= track->max_objects){
         //~ objcount = 0;
         return GST_FLOW_OK;
       }
-      getDiff(&vl, j, i, track->bgyuv);
-      if (vl.diff < track->threshold){
-        // measure area of detected object from upper-left
+      if (matchColor(&vl, j, i, track->bgyuv)){
+        // measure bounds of detected object
         getBounds(&vl, j, i, rect);
-        point = rectCenter(rect);
-        // from center
-        getBounds(&vl, point[0], point[1], rect);
-        // from bottom-right
-        getBounds(&vl, rect[2]-7, rect[3]-7, rect);
-        // from bottom-left
-        getBounds(&vl, rect[0]+7, rect[3]-7, rect);
-        // from upper-right
-        getBounds(&vl, rect[2]-7, rect[1]+7, rect);
         if (rect[2]-rect[0] < track->size
           || rect[3]-rect[1] < track->size){
           // reject, too small
@@ -364,15 +353,16 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
           box(&vl, rect, mcolor);
         }
         if (track->message){
-          numstr = g_strdup_printf("track[%i]",objcount);
-          s = gst_structure_new (numstr,
+          //~ numstr = g_strdup_printf("track[%i]",objcount);
+          s = gst_structure_new ("track",
+          "object", G_TYPE_UINT, objcount,
           "rect[0]", G_TYPE_UINT, rect[0],
           "rect[1]", G_TYPE_UINT, rect[1],
           "rect[2]", G_TYPE_UINT, rect[2],
           "rect[3]", G_TYPE_UINT, rect[3], NULL);
           gst_element_post_message (GST_ELEMENT_CAST (track),
             gst_message_new_element (GST_OBJECT_CAST (track), s));
-          g_free(numstr);
+          //~ g_free(numstr);
         }
         for (int r=4; r--;){
           track->found[objcount][r] = rect[r];
@@ -383,7 +373,7 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
     }
   }
   // unmark
-  for (int c=track->objects; c--;){
+  for (int c=objcount; c--;){
     markBounds(&vl, track->found[c], track->size);
   }
   return GST_FLOW_OK;

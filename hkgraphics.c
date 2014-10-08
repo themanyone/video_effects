@@ -113,50 +113,47 @@ guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color)
   return color;
 }
 
-guint getDiff (hkVidLayout *vl, int x, int y, guint8 *color)
-/* get diff between color at x,y and supplied color */
+gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color)
+/* check if supplied color matches color at x,y and vl->threshold */
 {
   guint8 *pixel;
-  vl->diff = 0;
+  guint diff = 0;
   for (int k=3;k--;){
     pixel = getPixel(vl, x, y, k);
     // k+1 favors color over shade
-    vl->diff += (k+1) * abs(*pixel - color[k]);
+    diff += (k+1) * abs(*pixel - color[k]);
   }
-  return vl->diff;
+  return diff < vl->threshold;
 }
 
-guint getDiff2 (hkVidLayout *vl, int x, int y)
-/* get diff between color at x,y and any of vl's fg and bg colors */
+gboolean matchAny (hkVidLayout *vl, int x, int y)
+/* check if supplied color matches any at x,y and vl->threshold */
 {
-  getDiff(vl, x, y, vl->bgcolor);
-  if (vl->diff > vl->threshold){
-    getDiff(vl, x, y, vl->fgcolor0);
-  }
-  if (vl->diff > vl->threshold){
-    getDiff(vl, x, y, vl->fgcolor1);
-  }
-  return vl->diff;
+  return matchColor(vl, x, y, vl->bgcolor) || 
+        matchColor(vl, x, y, vl->fgcolor0) ||
+        matchColor(vl, x, y, vl->fgcolor1);
 }
 
 guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy)
 /* stretch the measuring tape across a color patch */
 {
   static guint endpoint[2];
-  while(1){
+  while (1) {
     x += dx, y += dy;
-    if (y >= 0 && y < vl->height && x >= 0 && x < vl->width){
-      getDiff2(vl, x, y);
-      if (vl->diff > vl->threshold){
-        endpoint[0] = x-dx, endpoint[1] = y-dy;
-        break;
-      }
-    } else {
-      endpoint[0] = CLAMP (x-dx, 0, vl->width - 1);
-      endpoint[1] = CLAMP (y-dy, 0, vl->height - 1);
-      break;
+    if ( x < 0 
+      || x >= vl->width
+      || y < 0
+      || y >= vl->height
+      || ! matchAny(vl, x, y)) {
+      x-=dx, y-=dy;
+      if (abs(dx) > 1 || abs(dy) > 1) {
+        if (dx) dx /= abs(dx);
+        else dy /= abs(dy);
+      } else break;
     }
   }
+  endpoint[0] = CLAMP (x, 0, vl->width - 1);
+  endpoint[1] = CLAMP (y, 0, vl->height - 1);
   return endpoint;
 }
 
@@ -177,54 +174,50 @@ void markBounds(hkVidLayout *vl, guint *rect, guint size)
 guint* getBounds(hkVidLayout *vl, int x, int y, guint *rect)
 /* survey area of color patch */
 {
+  #define STEP 8
+  gboolean expanded;
   guint *extent;
   if (y >= 0 && y < vl->height && x >= 0 && x < vl->width){
     if (!rect[3]) {
       rect[0] = rect[2] = x;
       rect[1] = rect[3] = y;    
     }
-    // stretch the tape out in different directions
-    // right
-    extent = getLength(vl, x, y, 4, 0);
-    rect[2] = (extent[0] > rect[2]) ? extent[0] : rect[2];
-    extent = getLength(vl, extent[0], y, 1, 0);
-    rect[2] = (extent[0] > rect[2]) ? extent[0] : rect[2];
-    // right, down
-    extent = getLength(vl, x, y, 4, 4);
-    rect[2] = (extent[0] > rect[2]) ? extent[0] : rect[2];
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    extent = getLength(vl, rect[2], rect[3], 1, 1);
-    rect[2] = (extent[0] > rect[2]) ? extent[0] : rect[2];
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    // down
-    extent = getLength(vl, x, y, 0, 4);
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    extent = getLength(vl, x, rect[3], 0, 1);
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    // left, down
-    extent = getLength(vl, x, y, -4, 4);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    extent = getLength(vl, rect[0], rect[3], -1, 1);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    rect[3] = (extent[1] > rect[3]) ? extent[1] : rect[3];
-    // left
-    extent = getLength(vl, x, y, -4, 0);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    extent = getLength(vl, rect[0], y, -1, 0);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    // left, up
-    extent = getLength(vl, x, y, -4, -4);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    rect[1] = (extent[1] < rect[1]) ? extent[1] : rect[1];
-    extent = getLength(vl, rect[0], rect[1], -1, -1);
-    rect[0] = (extent[0] < rect[0]) ? extent[0] : rect[0];
-    rect[1] = (extent[1] < rect[1]) ? extent[1] : rect[1];
-    // up
-    extent = getLength(vl, x, y, 0, -4);
-    rect[1] = (extent[1] < rect[1]) ? extent[1] : rect[1];
-    extent = getLength(vl, x, rect[1], 0, -1);
-    rect[1] = (extent[1] < rect[1]) ? extent[1] : rect[1];
+    // stretch the box out in different directions
+    do {
+      expanded = FALSE;
+      // right
+      for (int v = rect[1]; v<=rect[3]; v+=1){
+        extent = getLength(vl, rect[2], v, STEP, 0);
+        if (extent[0] > rect[2]){
+          rect[2] = extent[0];
+          expanded = TRUE;
+        }
+      }
+      // down
+      for (int h = rect[0]; h<=rect[2]; h+=1){
+        extent = getLength(vl, h, rect[3], 0, STEP);
+        if (extent[1] > rect[3]){
+          rect[3] = extent[1];
+          expanded = TRUE;
+        }
+      }
+      // left
+      for (int v = rect[1]; v<=rect[3]; v+=1){
+        extent = getLength(vl, rect[0], v, -STEP, 0);
+        if (extent[0] < rect[0]){
+          rect[0] = extent[0];
+          expanded = TRUE;
+        }
+      }
+      // up
+      for (int h = rect[0]; h<=rect[2]; h+=1){
+        extent = getLength(vl, h, rect[1], 0, -STEP);
+        if (extent[1] < rect[1]){
+          rect[1] = extent[1];
+          expanded = TRUE;
+        }
+      }
+    } while (expanded == TRUE);
   }
   return rect;
 }

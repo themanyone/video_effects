@@ -35,14 +35,14 @@ enum
   PROP_FGCOLOR0,
   PROP_FGCOLOR1,
   PROP_THRESHOLD,
-  PROP_OBJECTS
+  PROP_MAX_OBJECTS
 };
 
 #define DEFAULT_MESSAGE TRUE
 #define DEFAULT_MARK TRUE
 #define DEFAULT_THRESHOLD 75
 #define DEFAULT_SIZE 20
-#define DEFAULT_OBJECTS 5
+#define DEFAULT_MAX_OBJECTS 5
 #define DEFAULT_COLOR 0xFF0000
 #define MAX_OBJECTS 25
 
@@ -68,7 +68,7 @@ typedef struct _GstTrack
   guint fgcolor0;
   guint fgcolor1;
   guint threshold;
-  guint objects;
+  guint max_objects;
   guint found[MAX_OBJECTS][4];
 
   /* state */

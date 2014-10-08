@@ -33,7 +33,6 @@ typedef struct _hkVidLayout
   guint8 *fgcolor0;
   guint8 *fgcolor1;
   guint threshold;
-  guint diff;
   // todo: use this struct to reduce number of func args
 } hkVidLayout;
 
@@ -43,8 +42,8 @@ void plotXY (hkVidLayout *vl, int x, int y, guint8 *color);
 void crosshairs(hkVidLayout *vl, guint *point, guint8 *color);
 void box(hkVidLayout *vl, guint *rect, guint8 *color);
 guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color);
-guint getDiff (hkVidLayout *vl, int x, int y, guint8 *color);
-guint getDiff2 (hkVidLayout *vl, int x, int y);
+gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color);
+gboolean matchAny (hkVidLayout *vl, int x, int y);
 guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy);
 void markBounds(hkVidLayout *vl, guint *rect, guint size);
 guint* getBounds(hkVidLayout *vl, int x, int y, guint *rect);
