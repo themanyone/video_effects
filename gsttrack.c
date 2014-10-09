@@ -21,19 +21,24 @@
  *
  * The track element tracks and optionally marks areas of color in a 
  * video stream. A threshold value may be adjusted to eliminate false 
- * signals. The default value of 75 should be good enough for most 
- * purposes. The algorithm gives more weight to color, especialy skin 
+ * signals. The algorithm gives more weight to color, especialy skin 
  * tones, and pays less attention to shading and bad lighting.
  * During each frame, if the #GstTrack:message property is #TRUE,
  * track emits an element message for each video frame, named
- * <classname>&quot;track[0,1,2,3...]&quot;</classname>: where [0]
- * is the obect tracking number.
  *
- * Note: Objects are sorted in top-down and left-to-right order, so 
- * an object's tracking number may change.
+ * <classname>&quot;track&quot;</classname>
  *
  * The message's structure contains these fields:
  * <itemizedlist>
+ * <listitem>
+ *   <para>
+ *   #GstValue of #guint
+ *   <classname>&quot;object&quot;</classname>:
+ *   the temporary tracking number of each detected object.
+ *   Note: Objects are sorted in top-down and left-to-right order,
+ *   so an object's tracking number may change.
+ *   </para>
+ * </listitem>
  * <listitem>
  *   <para>
  *   #GstValueList of #guint
@@ -54,10 +59,10 @@
  * is most important. This is the first color that track finds. 
  * The foreground, text, and outline colors are optional. Track's 
  * algorithm can now track team players. Track can follow
- * blue players with black and green markings, while ignoring green 
+ * blue players with black and orange markings, while ignoring orange 
  * players with black and blue markings on the field. Set the 
  * object's (player's) background color to blue and the foreground 
- * colors to black, and green. Want to track the other team, too? 
+ * colors to black, and orange. Want to track the other team, too? 
  * No problem! Multiple instances of track may be added to the 
  * pipeline.
  * </refsect2>

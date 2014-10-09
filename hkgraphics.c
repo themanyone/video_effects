@@ -148,7 +148,7 @@ guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy)
       x-=dx, y-=dy;
       if (abs(dx) > 1 || abs(dy) > 1) {
         if (dx) dx /= abs(dx);
-        else dy /= abs(dy);
+        if (dy) dy /= abs(dy);
       } else break;
     }
   }
@@ -217,7 +217,7 @@ guint* getBounds(hkVidLayout *vl, int x, int y, guint *rect)
           expanded = TRUE;
         }
       }
-    } while (expanded == TRUE);
+    } while (expanded);
   }
   return rect;
 }
