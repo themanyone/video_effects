@@ -1,7 +1,5 @@
 /* GStreamer
  * Copyright (C) 2014 Henry Kroll <nospam@thenerdshow.com>
- * Extends gstzebrastripe.h
- * Copyright (C) 2011 David Schleef <ds@entropywave.com>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -60,21 +58,20 @@ typedef struct _GstTrack
 
   /* properties */
   gboolean message;             /* whether to post messages */
-  guint64 interval;             /* seconds between messages */
-  guint *rect;                  /* bounding box of traced object */
-  gboolean mark;
-  guint size;
-  guint bgcolor;
-  guint fgcolor0;
-  guint fgcolor1;
-  guint threshold;
-  guint max_objects;
-  guint found[MAX_OBJECTS][4];
+  gboolean mark;                /* whether to mark video */
+  guint size;                   /* minimum detection size */
+  guint bgcolor;                /* object color to track */
+  guint fgcolor0;               /* object highlight or text */
+  guint fgcolor1;               /* object spot or outline */
+  guint threshold;              /* color tracking threshold */
+  guint max_objects;            /* number of objects to track */
 
   /* state */
+  guint *rect;                  /* bounding box of traced object */
   guint8 bgyuv[3];
   guint8 fgyuv0[3];
   guint8 fgyuv1[3];
+  guint found[MAX_OBJECTS][4];
 
 } GstTrack;
 
