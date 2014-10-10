@@ -42,9 +42,16 @@
  * <listitem>
  *   <para>
  *   #GstValueList of #guint
- *   <classname>&quot;rect[0,1,2,3]&quot;</classname>:
+ *   <classname>&quot;x1,y1,x2,y2&quot;</classname>:
  *   the x,y coordinates of the top-left and bottom-right corner
  *   of the bounding box for each detected object.
+ *   </para>
+ * </listitem>
+ * <listitem>
+ *   <para>
+ *   #GstValueList of #guint
+ *   <classname>&quot;xc,yc&quot;</classname>:
+ *   the x,y coordinates of the center of each detected object.
  *   </para>
  * </listitem>
  * </itemizedlist>
@@ -164,7 +171,7 @@ gst_track_class_init (GstTrackClass * klass)
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR0,
       g_param_spec_uint ("fgcolor0", "Foreground Color 0",
-          "Object's Foreground or Text Color green=0x00ff00", 0, G_MAXUINT,
+          "Object's Highlight or Text Color green=0x00ff00", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR0,
@@ -332,12 +339,8 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
   }
   // mix up some white paint, for optional markers
   rgb2yuv(0xffffff, mcolor);
-  for (int i=0;i<vl.height;i+=size){
-    for (int j=0;j<vl.width;j+=size){
-      if (objcount >= track->max_objects){
-        //~ objcount = 0;
-        return GST_FLOW_OK;
-      }
+  for (int i=0;i<vl.height && objcount < track->max_objects; i+=size){
+    for (int j=0;j<vl.width && objcount < track->max_objects;j+=size){
       if (matchColor(&vl, j, i, track->bgyuv)){
         // measure bounds of detected object
         getBounds(&vl, j, i, rect);
@@ -352,8 +355,8 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
         // object big enough
         // mark off object, so it isn't detected twice
         markBounds(&vl, rect, track->size);
+        point = rectCenter(rect);
         if (track->mark){
-          point = rectCenter(rect);
           crosshairs(&vl, point, mcolor);
           box(&vl, rect, mcolor);
         }
@@ -361,10 +364,13 @@ gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
           //~ numstr = g_strdup_printf("track[%i]",objcount);
           s = gst_structure_new ("track",
           "object", G_TYPE_UINT, objcount,
-          "rect[0]", G_TYPE_UINT, rect[0],
-          "rect[1]", G_TYPE_UINT, rect[1],
-          "rect[2]", G_TYPE_UINT, rect[2],
-          "rect[3]", G_TYPE_UINT, rect[3], NULL);
+          "x1", G_TYPE_UINT, rect[0],
+          "y1", G_TYPE_UINT, rect[1],
+          "x2", G_TYPE_UINT, rect[2],
+          "y2", G_TYPE_UINT, rect[3],
+          "xc", G_TYPE_UINT, point[0],
+          "yc", G_TYPE_UINT, point[1],
+            NULL);
           gst_element_post_message (GST_ELEMENT_CAST (track),
             gst_message_new_element (GST_OBJECT_CAST (track), s));
           //~ g_free(numstr);
