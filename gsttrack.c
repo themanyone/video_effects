@@ -33,10 +33,19 @@
  * <listitem>
  *   <para>
  *   #GstValue of #guint
+ *   <classname>&quot;count&quot;</classname>:
+ *   Total number of detected objects on screen.
+ *   </para>
+ * </listitem>
+ * <listitem>
+ *   <para>
+ *   #GstValue of #guint
  *   <classname>&quot;object&quot;</classname>:
  *   the temporary tracking number of each detected object.
- *   Note: Objects are sorted in top-down and left-to-right order,
- *   so an object's tracking number may change.
+ *   Note: Tracking numbers are initially assigned in top-down and
+ *    left-to-right order. Track will attempt to assign the same
+ *    tracking numbers to the same objects on each video frame,
+ *    except if an object loses focus or leaves the frame.
  *   </para>
  * </listitem>
  * <listitem>
@@ -194,7 +203,11 @@ gst_track_init (GstTrack * track,
   track->fgcolor0 = DEFAULT_COLOR;
   track->fgcolor1 = DEFAULT_COLOR;
   track->threshold = DEFAULT_THRESHOLD;
-  track->max_objects = PROP_MAX_OBJECTS;
+  track->max_objects = DEFAULT_MAX_OBJECTS;
+  track->obj_count = 0;
+  for (int obj=MAX_OBJECTS; obj--;)
+    for (int i=6; i--;)
+      track->obj_found[obj][i] = 0;
 }
 
 void
@@ -308,85 +321,161 @@ gst_track_prefilter (GstVideoFilter2 * videofilter2, GstBuffer * buf)
   return GST_FLOW_OK;
 }
 
+static void hkgraphics_init (GstTrack *track, hkVidLayout *vl, GstBuffer *buf)
+/* populate hkVidLayout struct for hkgraphics library */
+/* called upon each video frame */
+{
+  GstVideoFormat format = GST_VIDEO_FILTER2_FORMAT (track);
+  guint8 *gdata = GST_BUFFER_DATA (buf);
+  vl->width = GST_VIDEO_FILTER2_WIDTH (track),
+  vl->height = GST_VIDEO_FILTER2_HEIGHT (track),
+  vl->threshold = track->threshold,
+  vl->bgcolor = track->bgyuv,
+  vl->fgcolor0 = track->fgyuv0;
+  vl->fgcolor1 = track->fgyuv1;
+  for (int i=3;i--;){
+    vl->data[i] = gdata + gst_video_format_get_component_offset
+      (format, i, vl->width, vl->height);
+    vl->stride[i] = gst_video_format_get_row_stride
+      (format, i, vl->width);
+    vl->hscale[i] = vl->height /
+      gst_video_format_get_component_height (format, i, vl->height);
+    vl->wscale[i] = vl->width /
+      gst_video_format_get_component_width (format, i, vl->width);
+  }
+}
+
+static gboolean is_reject(GstTrack *track, guint *rect, guint obj)
+{
+  gboolean reject = FALSE;
+  // too small?
+  if (rect[2]-rect[0] < track->size
+    || rect[3]-rect[1] < track->size){
+    reject = TRUE;
+  }
+  // already detected?
+  for (int o=MAX_OBJECTS; o--;){
+    if (o==obj) continue;
+    if (track->obj_found[o][0]==rect[0]
+      && track->obj_found[o][1]==rect[1]){ 
+        reject = TRUE;
+        break;
+    }
+  }
+  return reject;
+}
+
+static void scan_for_objects(GstTrack *track, hkVidLayout *vl)
+/* search video frame and count any colored objects */
+{
+  guint size = track->size,
+    max = track->max_objects,
+    rect[4]={0}, *center,
+    available = 0;
+  for (int i=0; i<vl->height && track->obj_count < max; i+=size){
+    for (int j=0;j<vl->width && track->obj_count < max; j+=size){
+      if (matchColor(vl, j, i, track->bgyuv)){
+        // measure bounds of detected object
+        getBounds(vl, j, i, rect);
+        if (is_reject(track, rect, MAX_OBJECTS)){
+          rect[3] = 0; continue;
+        }
+        center = rectCenter(rect);
+        // find an available obj_found storage location
+        for (int i=0; i<max; i++){
+          if (!track->obj_found[i][3]){
+            available = i;
+            break;
+          }
+        }
+        for (int r=4; r--;){
+          track->obj_found[available][r] = rect[r];
+          rect[r] = 0;
+        }
+        track->obj_found[available][4] = center[0];
+        track->obj_found[available][5] = center[1];
+        track->obj_count++;
+      }
+    }
+  }
+}
+
+static void track_objects(GstTrack *track, hkVidLayout *vl)
+/* Follows existing objects as they move about. */
+/* Attempts to keep persistent tracking numbers assigned. */
+{
+  guint *rect, *center;
+  for (int obj = 0; obj < MAX_OBJECTS; obj++){
+    rect = track->obj_found[obj];
+    if (!rect[3]) continue; // next
+    // clear old rect
+    for (int i=4; i--;) rect[i] = 0;
+    // get new bounds
+    getBounds(vl, rect[4], rect[5], rect);
+    
+    if (is_reject(track, rect, obj)){
+      // reject; wipe it
+      track->obj_count--;
+      for (int r=6; r--;){
+        rect[r] = 0;
+      }
+      continue; // next
+    }
+    
+    // object big enough
+    center = rectCenter(rect);
+    rect[4] = center[0];
+    rect[5] = center[1];
+  }
+  scan_for_objects(track, vl);
+}
+
+static void report_objects(GstTrack *track, hkVidLayout *vl)
+/* mark and/or report object count, locations */
+{
+  GstStructure *s;
+  guint8 mcolor[3];
+  guint *prect, *center, obj = 0;
+  // mix up some white paint, for optional markers
+  rgb2yuv(0xffffff, mcolor);
+  for (int c=track->obj_count; c--;){
+    do {
+      if (track->obj_found[obj][3]) break;
+      obj++;
+    } while (1);
+    prect = track->obj_found[obj], center = &track->obj_found[obj][4];
+    if (track->mark){
+      crosshairs(vl, center, mcolor);
+      box(vl, prect, mcolor);
+    }
+    if (track->message){
+      //~ numstr = g_strdup_printf("track[%i]",track->obj_count);
+      s = gst_structure_new ("track",
+      "count", G_TYPE_UINT, track->obj_count,
+      "object", G_TYPE_UINT, obj,
+      "x1", G_TYPE_UINT, prect[0],
+      "y1", G_TYPE_UINT, prect[1],
+      "x2", G_TYPE_UINT, prect[2],
+      "y2", G_TYPE_UINT, prect[3],
+      "xc", G_TYPE_UINT, center[0],
+      "yc", G_TYPE_UINT, center[1],
+        NULL);
+      gst_element_post_message (GST_ELEMENT_CAST (track),
+        gst_message_new_element (GST_OBJECT_CAST (track), s));
+      //~ g_free(numstr);
+    }
+    obj++;
+  }
+}
+
 static GstFlowReturn
 gst_track_filter_ip_planarY (GstVideoFilter2 * videofilter2,
     GstBuffer * buf, int start, int end)
 {
   GstTrack *track = GST_TRACK (videofilter2);
-  GstVideoFormat format = GST_VIDEO_FILTER2_FORMAT (track);
-  guint8 mcolor[3], *gdata = GST_BUFFER_DATA (buf);
-  guint objcount = 0,
-    size = track->size,
-    rect[4]={0}, *point;
-  GstStructure *s;
-  hkVidLayout vl;
-  // copy video filter data into hkVidLayout struct
-  // so hkgraphics external library can manipulate it
-  vl.width = GST_VIDEO_FILTER2_WIDTH (track),
-  vl.height = GST_VIDEO_FILTER2_HEIGHT (track),
-  vl.threshold = track->threshold,
-  vl.bgcolor = track->bgyuv,
-  vl.fgcolor0 = track->fgyuv0;
-  for (int i=3;i--;){
-    vl.data[i] = gdata + gst_video_format_get_component_offset
-      (format, i, vl.width, vl.height);
-    vl.stride[i] = gst_video_format_get_row_stride
-      (format, i, vl.width);
-    vl.hscale[i] = vl.height /
-      gst_video_format_get_component_height (format, i, vl.height);
-    vl.wscale[i] = vl.width /
-      gst_video_format_get_component_width (format, i, vl.width);
-  }
-  // mix up some white paint, for optional markers
-  rgb2yuv(0xffffff, mcolor);
-  for (int i=0;i<vl.height && objcount < track->max_objects; i+=size){
-    for (int j=0;j<vl.width && objcount < track->max_objects;j+=size){
-      if (matchColor(&vl, j, i, track->bgyuv)){
-        // measure bounds of detected object
-        getBounds(&vl, j, i, rect);
-        if (rect[2]-rect[0] < track->size
-          || rect[3]-rect[1] < track->size){
-          // reject, too small
-          for (int r=4; r--;){
-            rect[r] = 0;
-          }
-          continue;
-        }
-        // object big enough
-        // mark off object, so it isn't detected twice
-        markBounds(&vl, rect, track->size);
-        point = rectCenter(rect);
-        if (track->mark){
-          crosshairs(&vl, point, mcolor);
-          box(&vl, rect, mcolor);
-        }
-        if (track->message){
-          //~ numstr = g_strdup_printf("track[%i]",objcount);
-          s = gst_structure_new ("track",
-          "object", G_TYPE_UINT, objcount,
-          "x1", G_TYPE_UINT, rect[0],
-          "y1", G_TYPE_UINT, rect[1],
-          "x2", G_TYPE_UINT, rect[2],
-          "y2", G_TYPE_UINT, rect[3],
-          "xc", G_TYPE_UINT, point[0],
-          "yc", G_TYPE_UINT, point[1],
-            NULL);
-          gst_element_post_message (GST_ELEMENT_CAST (track),
-            gst_message_new_element (GST_OBJECT_CAST (track), s));
-          //~ g_free(numstr);
-        }
-        for (int r=4; r--;){
-          track->found[objcount][r] = rect[r];
-          rect[r] = 0;
-        }
-        objcount++;
-      }
-    }
-  }
-  // unmark
-  for (int c=objcount; c--;){
-    markBounds(&vl, track->found[c], track->size);
-  }
+  hkVidLayout vl; hkgraphics_init(track, &vl, buf);
+  track_objects(track, &vl);
+  report_objects(track, &vl);
   return GST_FLOW_OK;
 }
 
@@ -395,31 +484,6 @@ gst_track_filter_ip_YxYy (GstVideoFilter2 * videofilter2,
     GstBuffer * buf, int start, int end)
 {
   g_print("Fixme: YxYy\n");
-  //~ GstTrack *track = GST_TRACK (videofilter2);
-  //~ GstVideoFormat format = GST_VIDEO_FILTER2_FORMAT (track);
-  //~ int width = GST_VIDEO_FILTER2_WIDTH (track);
-  //~ int i, j;
-  //~ int threshold = track->y_threshold;
-  //~ int t = track->t;
-  //~ guint8 *ydata;
-  //~ int ystride;
-
-  //~ ydata = GST_BUFFER_DATA (buf);
-  //~ ystride = gst_video_format_get_row_stride (format, 0, width);
-
-  //~ if (format == GST_VIDEO_FORMAT_UYVY) {
-    //~ ydata++;
-  //~ }
-
-  //~ for (j = start; j < end; j++) {
-    //~ guint8 *data = ydata + ystride * j;
-    //~ for (i = 0; i < width; i++) {
-      //~ if (data[2 * i] >= threshold) {
-        //~ if ((i + j + t) & 0x4)
-          //~ data[2 * i] = 15;
-      //~ }
-    //~ }
-  //~ }
   return GST_FLOW_OK;
 }
 
@@ -428,29 +492,6 @@ gst_track_filter_ip_AYUV (GstVideoFilter2 * videofilter2,
     GstBuffer * buf, int start, int end)
 {
   g_print("Fixme: AYUV\n");
-  //~ GstTrack *track = GST_TRACK (videofilter2);
-  //~ int width = GST_VIDEO_FILTER2_WIDTH (track);
-  //~ int i, j;
-  //~ int threshold = track->threshold;
-  //~ int t = track->t;
-  //~ guint8 *ydata;
-  //~ int ystride;
-
-  //~ ydata = GST_BUFFER_DATA (buf);
-  //~ ystride =
-      //~ gst_video_format_get_row_stride (GST_VIDEO_FILTER2_FORMAT (videofilter2),
-      //~ 0, width);
-  //~ ydata++;
-  //~ for (j = start; j < end; j++) {
-    //~ guint8 *data = ydata + ystride * j;
-    //~ for (i = 0; i < width; i++) {
-      //~ if (data[4 * i] >= threshold) {
-        //~ if ((i + j) & 0x4)
-          //~ data[4 * i] = 15;
-      //~ }
-    //~ }
-  //~ }
-
   return GST_FLOW_OK;
 }
 

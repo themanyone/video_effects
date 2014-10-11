@@ -157,20 +157,6 @@ guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy)
   return endpoint;
 }
 
-void markBounds(hkVidLayout *vl, guint *rect, guint size)
-/* mark area of color patch, so it isn't detected again */
-{
-  guint8 *pixel;
-  guint sx = rect[0] - rect[0] % size + size;
-  guint sy = rect[1] - rect[1] % size + size;
-  for (guint y=sy; y<rect[3]; y+=size){
-    for (guint x=sx; x<rect[2]; x+=size){
-      pixel = getPixel(vl, x, y, 2);
-      *pixel ^= 0x80;
-    }
-  }
-}
-
 guint* getBounds(hkVidLayout *vl, int x, int y, guint *rect)
 /* survey area of color patch */
 {

@@ -71,8 +71,8 @@ typedef struct _GstTrack
   guint8 bgyuv[3];
   guint8 fgyuv0[3];
   guint8 fgyuv1[3];
-  guint found[MAX_OBJECTS][4];
-
+  guint obj_found[MAX_OBJECTS][6];
+  guint obj_count;
 } GstTrack;
 
 typedef struct _GstTrackClass
