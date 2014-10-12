@@ -40,6 +40,7 @@ guint8* rgb2yuv (guint rgb, guint8 *yuv);
 guint8 *getPixel(hkVidLayout *vl, int x, int y, guint8 layer);
 void plotXY (hkVidLayout *vl, int x, int y, guint8 *color);
 void crosshairs(hkVidLayout *vl, guint *point, guint8 *color);
+void erase(hkVidLayout *vl, guint *rect);
 void box(hkVidLayout *vl, guint *rect, guint8 *color);
 guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color);
 gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color);

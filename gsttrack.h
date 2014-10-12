@@ -27,6 +27,7 @@ enum
 {
   PROP_0,
   PROP_MESSAGE,
+  PROP_ERASE,
   PROP_MARK,
   PROP_SIZE,
   PROP_BGCOLOR,
@@ -37,6 +38,7 @@ enum
 };
 
 #define DEFAULT_MESSAGE TRUE
+#define DEFAULT_ERASE FALSE
 #define DEFAULT_MARK TRUE
 #define DEFAULT_THRESHOLD 75
 #define DEFAULT_SIZE 20
@@ -58,6 +60,7 @@ typedef struct _GstTrack
 
   /* properties */
   gboolean message;             /* whether to post messages */
+  gboolean erase;               /* whether to erase objects */
   gboolean mark;                /* whether to mark video */
   guint size;                   /* minimum detection size */
   guint bgcolor;                /* object color to track */

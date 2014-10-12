@@ -158,6 +158,10 @@ gst_track_class_init (GstTrackClass * klass)
       g_param_spec_boolean ("mark", "Mark",
           "Mark each tracked object with crosshairs",
         DEFAULT_MARK, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (gobject_class, PROP_ERASE,
+      g_param_spec_boolean ("erase", "Magic Eraser",
+          "Attempt to to erase object from view",
+        DEFAULT_ERASE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_THRESHOLD,
       g_param_spec_uint ("threshold", "Threshold",
           "Tracking color difference threshold", 0, 600,
@@ -198,6 +202,7 @@ gst_track_init (GstTrack * track,
     GstTrackClass * track_class)
 {
   track->message = DEFAULT_MESSAGE;
+  track->erase = DEFAULT_ERASE;
   track->mark = DEFAULT_MARK;
   track->bgcolor = DEFAULT_COLOR;
   track->fgcolor0 = DEFAULT_COLOR;
@@ -221,6 +226,9 @@ gst_track_set_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_MESSAGE:
       track->message = g_value_get_boolean(value);
+      break;
+    case PROP_ERASE:
+      track->erase = g_value_get_boolean(value);
       break;
     case PROP_MARK:
       track->mark = g_value_get_boolean(value);
@@ -264,6 +272,9 @@ gst_track_get_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_MESSAGE:
       g_value_set_boolean (value, track->message);
+      break;
+    case PROP_ERASE:
+      g_value_set_boolean (value, track->erase);
       break;
     case PROP_MARK:
       g_value_set_boolean (value, track->mark);
@@ -448,6 +459,7 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
       crosshairs(vl, center, mcolor);
       box(vl, prect, mcolor);
     }
+    if (track->erase) erase(vl, prect);
     if (track->message){
       //~ numstr = g_strdup_printf("track[%i]",track->obj_count);
       s = gst_structure_new ("track",

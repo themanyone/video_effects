@@ -31,24 +31,24 @@ import gst
 class test():
 
    def track_cb(self, sender, *args):
-        msg = args[0]
-        if msg.type == gst.MESSAGE_ELEMENT\
-            and msg.structure.get_name()=="track":
-            if msg.structure["object"] == 0:
-                mix = self.bin.get_by_name("mix")
-                pads = list(mix.pads())
-                pad = pads[0]
-                xc = msg.structure["xc"]
-                yc = msg.structure["yc"]
-                x = (320 - xc)
-                y = (180 - yc)
-                pad.set_property("xpos",x)
-                pad.set_property("ypos",y)
-        return gst.BUS_PASS
+      msg = args[0]
+      if msg.type == gst.MESSAGE_ELEMENT\
+         and msg.structure.get_name()=="track":
+         if msg.structure["object"] == 0:
+            mix = self.bin.get_by_name("mix")
+            pads = list(mix.pads())
+            pad = pads[0]
+            xc = msg.structure["xc"]
+            yc = msg.structure["yc"]
+            x = (320 - xc)
+            y = (180 - yc)
+            pad.set_property("xpos",x)
+            pad.set_property("ypos",y)
+      return gst.BUS_PASS
 
    def __init__(self, args):
 
-    self.bin = gst.parse_launch("filesrc location=paper.avi\
+      self.bin = gst.parse_launch("filesrc location=paper.avi\
  ! queue\
  ! decodebin\
  ! tee name=tee\
@@ -62,24 +62,24 @@ class test():
  ! autovideosink\
  tee.\
  ! queue\
- ! track mark=0 objects=1 bgcolor=0x7CA0D5 size=5 name=trk\
+ ! track mark=0 objects=1 bgcolor=0x7CA0D5 size=8 threshold=88 name=trk\
  ! videomixer2 name=mix\
  ! videocrop left=200 right=200 top=120 bottom=100\
  ! cairotextoverlay text=\"zoom to objects\"\
  ! mix2.")
-    bus = self.bin.get_bus()
-    bus.add_signal_watch()
-    bus.connect("message::element", self.track_cb)
-    res = self.bin.set_state(gst.STATE_PLAYING);
-    assert res
+      bus = self.bin.get_bus()
+      bus.add_signal_watch()
+      bus.connect("message::element", self.track_cb)
+      res = self.bin.set_state(gst.STATE_PLAYING);
+      assert res
 
-    while 1:
-      msg = bus.poll(gst.MESSAGE_EOS | gst.MESSAGE_ERROR, gst.SECOND)
-      if msg:
-          break
+      while 1:
+         msg = bus.poll(gst.MESSAGE_EOS | gst.MESSAGE_ERROR, gst.SECOND)
+         if msg:
+             break
 
-    res = self.bin.set_state(gst.STATE_NULL)
-    assert res
+      res = self.bin.set_state(gst.STATE_NULL)
+      assert res
 
 if __name__ == '__main__':
-    test(sys.argv)
+   test(sys.argv)
