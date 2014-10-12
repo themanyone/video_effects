@@ -174,7 +174,7 @@ gst_track_class_init (GstTrackClass * klass)
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_SIZE,
       g_param_spec_uint ("size", "Size",
-          "Minimum size of objects to track", 4, 100,
+          "Minimum size of objects to track", 1, 100,
           DEFAULT_SIZE,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_BGCOLOR,
@@ -211,8 +211,7 @@ gst_track_init (GstTrack * track,
   track->max_objects = DEFAULT_MAX_OBJECTS;
   track->obj_count = 0;
   for (int obj=MAX_OBJECTS; obj--;)
-    for (int i=6; i--;)
-      track->obj_found[obj][i] = 0;
+    track->obj_found[obj][3] = 0;
 }
 
 void
@@ -366,7 +365,7 @@ static gboolean is_reject(GstTrack *track, guint *rect, guint obj)
   }
   // already detected?
   for (int o=MAX_OBJECTS; o--;){
-    if (o==obj) continue;
+    if (o==obj || !track->obj_found[o][3]) continue;
     if (track->obj_found[o][0]==rect[0]
       && track->obj_found[o][1]==rect[1]){ 
         reject = TRUE;
@@ -423,17 +422,13 @@ static void track_objects(GstTrack *track, hkVidLayout *vl)
     for (int i=4; i--;) rect[i] = 0;
     // get new bounds
     getBounds(vl, rect[4], rect[5], rect);
-    
+    // check validity
     if (is_reject(track, rect, obj)){
       // reject; wipe it
       track->obj_count--;
-      for (int r=6; r--;){
-        rect[r] = 0;
-      }
-      continue; // next
+      rect[3] = 0; continue; // next
     }
-    
-    // object big enough
+    // get new center
     center = rectCenter(rect);
     rect[4] = center[0];
     rect[5] = center[1];
