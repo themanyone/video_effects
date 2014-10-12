@@ -81,17 +81,17 @@ void crosshairs(hkVidLayout *vl, guint *point, guint8 *color)
 void erase(hkVidLayout *vl, guint *rect)
 /* attempt to erase rect from video */
 {
-  guint8 *from, *to;
-  guint height = rect[3]-rect[1];
-  for(int y=rect[3];y>rect[1];y--){
-    for(int x=rect[2];x>rect[0];x--){
-      for (int k=3;k--;){
+  guint8 *from;
+  guint height = rect[3]-rect[1], h2 = height / 2;
+  for(int y=rect[3]; y >= rect[1] + h2; y--){
+    for(int x=rect[2]; x > rect[0]; x--){
+      for (int k=3; k--;){
         if (y > height)
-          from = getPixel(vl, x, y-height, k);
+          from = getPixel(vl, x, y - height, k);
         else
-          from = getPixel(vl, x, y+height, k);
-        to = getPixel(vl, x, y, k);
-        *to = *from;
+          from = getPixel(vl, x, y + h2, k);
+        *(getPixel(vl, x, y, k)) = *from;
+        *(getPixel(vl, x, y - h2, k)) = *from;
       }
     }
   }
