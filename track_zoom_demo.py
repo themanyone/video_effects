@@ -38,8 +38,6 @@ class test():
                 mix = self.bin.get_by_name("mix")
                 pads = list(mix.pads())
                 pad = pads[0]
-                xpos = pad.get_property("xpos")
-                ypos = pad.get_property("ypos")
                 xc = msg.structure["xc"]
                 yc = msg.structure["yc"]
                 x = (320 - xc)
@@ -58,7 +56,6 @@ class test():
  ! video/x-raw-yuv,width=240,height=200\
  ! cairotextoverlay text=\"unstable camera?\"\
  ! videomixer2 name=mix2\
- sink_1::alpha=1\
  sink_0::ypos=200\
  ! videocrop top=50\
  ! autovideoconvert\
