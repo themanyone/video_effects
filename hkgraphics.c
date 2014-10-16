@@ -78,20 +78,26 @@ void crosshairs(hkVidLayout *vl, guint *point, guint8 *color)
   }
 }
 
-void erase(hkVidLayout *vl, guint *rect)
-/* attempt to erase rect from video */
+void cloak(hkVidLayout *vl, guint *rect)
+/* attempt to cloak rect from video */
 {
-  guint8 *from;
-  guint height = rect[3]-rect[1], h2 = height / 2;
-  for(int y=rect[3]; y >= rect[1] + h2; y--){
-    for(int x=rect[2]; x > rect[0]; x--){
+  guint8 *fromleft, *fromright;
+  guint width = rect[2]-rect[0], w2 = width / 2;
+  for(int y=rect[3]; y > rect[1] ; y--){
+    for(int x=rect[2]; x > rect[0] + w2; x--){
       for (int k=3; k--;){
-        if (y > height)
-          from = getPixel(vl, x, y - height, k);
-        else
-          from = getPixel(vl, x, y + h2, k);
-        *(getPixel(vl, x, y, k)) = *from;
-        *(getPixel(vl, x, y - h2, k)) = *from;
+        if (x < vl->width - w2){
+          fromright = getPixel(vl, x + w2, y, k);
+        } else {
+          fromright = getPixel(vl, x - width, y, k);
+        }
+        if (x > width){
+          fromleft = getPixel(vl, x - width, y, k);
+        } else {
+          fromleft = getPixel(vl, x + w2, y, k);
+        }
+        *(getPixel(vl, x, y, k)) = *fromright;
+        *(getPixel(vl, x - w2, y, k)) = *fromleft;
       }
     }
   }

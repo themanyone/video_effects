@@ -27,24 +27,34 @@ enum
 {
   PROP_0,
   PROP_MESSAGE,
-  PROP_ERASE,
-  PROP_MARK,
+  PROP_REPLACE_METHOD,
   PROP_SIZE,
   PROP_BGCOLOR,
   PROP_FGCOLOR0,
   PROP_FGCOLOR1,
   PROP_THRESHOLD,
-  PROP_MAX_OBJECTS
+  PROP_MAX_OBJECTS,
 };
 
+typedef enum {
+  GST_TRACK_REPLACE_METHOD_NOTHING,
+  GST_TRACK_REPLACE_METHOD_CROSSHAIRS,
+  GST_TRACK_REPLACE_METHOD_BOX,
+  GST_TRACK_REPLACE_METHOD_BOTH,
+  GST_TRACK_REPLACE_METHOD_CLOAK,
+  GST_TRACK_REPLACE_METHOD_BLUR,
+  GST_TRACK_REPLACE_METHOD_DECIMATE,
+  GST_TRACK_REPLACE_METHOD_HORIZ,
+  GST_TRACK_REPLACE_METHOD_VERT,
+} GstTrackReplaceMethod;
+
 #define DEFAULT_MESSAGE TRUE
-#define DEFAULT_ERASE FALSE
-#define DEFAULT_MARK TRUE
 #define DEFAULT_THRESHOLD 75
 #define DEFAULT_SIZE 20
 #define DEFAULT_MAX_OBJECTS 5
 #define DEFAULT_COLOR 0xFF0000
 #define MAX_OBJECTS 1024
+#define DEFAULT_REPLACE_METHOD GST_TRACK_REPLACE_METHOD_CROSSHAIRS
 
 G_BEGIN_DECLS
 
@@ -60,21 +70,20 @@ typedef struct _GstTrack
 
   /* properties */
   gboolean message;             /* whether to post messages */
-  gboolean erase;               /* whether to erase objects */
-  gboolean mark;                /* whether to mark video */
   guint size;                   /* minimum detection size */
   guint bgcolor;                /* object color to track */
   guint fgcolor0;               /* object highlight or text */
   guint fgcolor1;               /* object spot or outline */
   guint threshold;              /* color tracking threshold */
   guint max_objects;            /* number of objects to track */
+  guint replace_method;         /* object replacement method */
 
   /* state */
-  guint *rect;                  /* bounding box of traced object */
-  guint8 bgyuv[3];
+  guint *rect;                  /* bounding box of tracked object */
+  guint8 bgyuv[3];              /* background color YUV */
   guint8 fgyuv0[3];
   guint8 fgyuv1[3];
-  guint obj_found[MAX_OBJECTS][6];
+  guint obj_found[MAX_OBJECTS][6]; /* array of found objects */
   guint obj_count;
 } GstTrack;
 

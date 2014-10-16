@@ -120,6 +120,33 @@ static GstVideoFilter2Functions gst_track_filter_functions[];
   GST_DEBUG_CATEGORY_INIT (gst_track_debug_category, "track", 0, \
       "debug category for track element");
 
+#define GST_TYPE_TRACK_REPLACE_METHOD (gst_track_replace_method_get_type())
+
+static const GEnumValue repace_methods[] = {
+  {GST_TRACK_REPLACE_METHOD_NOTHING, "Do nothing", "nothing"},
+  {GST_TRACK_REPLACE_METHOD_CROSSHAIRS, "Mark with crosshairs", "crosshairs"},
+  {GST_TRACK_REPLACE_METHOD_BOX, "Draw box", "box"},
+  {GST_TRACK_REPLACE_METHOD_BOTH, "Both 1 and 2", "both"},
+  {GST_TRACK_REPLACE_METHOD_CLOAK, "Cloaking device", "cloak"},
+  {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size average", "blur"},
+  {GST_TRACK_REPLACE_METHOD_DECIMATE, "Decimate into squares",
+      "decimate"},
+  {GST_TRACK_REPLACE_METHOD_HORIZ, "Flip horizontally", "horizontal-flip"},
+  {GST_TRACK_REPLACE_METHOD_VERT, "Flip vertically", "vertical-flip"},
+  {0, NULL, NULL},
+};
+
+static GType
+gst_track_replace_method_get_type (void)
+{
+  static GType repace_method_type = 0;
+  if (!repace_method_type) {
+    repace_method_type = g_enum_register_static ("GstTrackReplaceMethod",
+        repace_methods);
+  }
+  return repace_method_type;
+}
+
 GST_BOILERPLATE_FULL (GstTrack, gst_track, GstVideoFilter2,
     GST_TYPE_VIDEO_FILTER2, DEBUG_INIT);
 
@@ -154,14 +181,10 @@ gst_track_class_init (GstTrackClass * klass)
       g_param_spec_boolean ("message", "message",
           "Post a message for each tracked object",
         DEFAULT_MESSAGE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_MARK,
-      g_param_spec_boolean ("mark", "Mark",
-          "Mark each tracked object with crosshairs",
-        DEFAULT_MARK, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_ERASE,
-      g_param_spec_boolean ("erase", "Magic Eraser",
-          "Attempt to to erase object from view",
-        DEFAULT_ERASE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (gobject_class, PROP_REPLACE_METHOD,
+      g_param_spec_enum ("replace", "Replace Method", "What to replace tracked objects with",
+          GST_TYPE_TRACK_REPLACE_METHOD, DEFAULT_REPLACE_METHOD,
+          GST_PARAM_CONTROLLABLE | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_THRESHOLD,
       g_param_spec_uint ("threshold", "Threshold",
           "Tracking color difference threshold", 0, 600,
@@ -170,7 +193,7 @@ gst_track_class_init (GstTrackClass * klass)
   g_object_class_install_property (gobject_class, PROP_MAX_OBJECTS,
       g_param_spec_uint ("objects", "Objects",
           "Max number of objects to track", 1, MAX_OBJECTS,
-          PROP_MAX_OBJECTS,
+          DEFAULT_MAX_OBJECTS,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_SIZE,
       g_param_spec_uint ("size", "Size",
@@ -202,13 +225,12 @@ gst_track_init (GstTrack * track,
     GstTrackClass * track_class)
 {
   track->message = DEFAULT_MESSAGE;
-  track->erase = DEFAULT_ERASE;
-  track->mark = DEFAULT_MARK;
   track->bgcolor = DEFAULT_COLOR;
   track->fgcolor0 = DEFAULT_COLOR;
   track->fgcolor1 = DEFAULT_COLOR;
   track->threshold = DEFAULT_THRESHOLD;
   track->max_objects = DEFAULT_MAX_OBJECTS;
+  track->replace_method = DEFAULT_REPLACE_METHOD;
   track->obj_count = 0;
   for (int obj=MAX_OBJECTS; obj--;)
     track->obj_found[obj][3] = 0;
@@ -225,12 +247,6 @@ gst_track_set_property (GObject * object, guint property_id,
   switch (property_id) {
     case PROP_MESSAGE:
       track->message = g_value_get_boolean(value);
-      break;
-    case PROP_ERASE:
-      track->erase = g_value_get_boolean(value);
-      break;
-    case PROP_MARK:
-      track->mark = g_value_get_boolean(value);
       break;
     case PROP_SIZE:
       track->size = g_value_get_uint(value);
@@ -253,6 +269,9 @@ gst_track_set_property (GObject * object, guint property_id,
     case PROP_MAX_OBJECTS:
       track->max_objects = g_value_get_uint(value);
       break;
+    case PROP_REPLACE_METHOD:
+      track->replace_method = g_value_get_enum(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -272,12 +291,6 @@ gst_track_get_property (GObject * object, guint property_id,
     case PROP_MESSAGE:
       g_value_set_boolean (value, track->message);
       break;
-    case PROP_ERASE:
-      g_value_set_boolean (value, track->erase);
-      break;
-    case PROP_MARK:
-      g_value_set_boolean (value, track->mark);
-      break;
     case PROP_SIZE:
       g_value_set_uint (value, track->size);
       break;
@@ -295,6 +308,9 @@ gst_track_get_property (GObject * object, guint property_id,
       break;
     case PROP_MAX_OBJECTS:
       g_value_set_uint (value, track->max_objects);
+      break;
+    case PROP_REPLACE_METHOD:
+      g_value_set_enum (value, track->replace_method);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -437,7 +453,7 @@ static void track_objects(GstTrack *track, hkVidLayout *vl)
 }
 
 static void report_objects(GstTrack *track, hkVidLayout *vl)
-/* mark and/or report object count, locations */
+/* report object count, locations, optionally replace */
 {
   GstStructure *s;
   guint8 mcolor[3];
@@ -450,11 +466,21 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
       obj++;
     } while (1);
     prect = track->obj_found[obj], center = &track->obj_found[obj][4];
-    if (track->mark){
-      crosshairs(vl, center, mcolor);
-      box(vl, prect, mcolor);
+    switch (track->replace_method){
+      case GST_TRACK_REPLACE_METHOD_BOX:
+        box(vl, prect, mcolor);
+        break;
+      case GST_TRACK_REPLACE_METHOD_BOTH:
+        box(vl, prect, mcolor);
+      case GST_TRACK_REPLACE_METHOD_CROSSHAIRS:
+        crosshairs(vl, center, mcolor);
+        break;
+      case GST_TRACK_REPLACE_METHOD_CLOAK:
+        cloak(vl, prect);
+        break;
+      default:
+        break;
     }
-    if (track->erase) erase(vl, prect);
     if (track->message){
       //~ numstr = g_strdup_printf("track[%i]",track->obj_count);
       s = gst_structure_new ("track",
