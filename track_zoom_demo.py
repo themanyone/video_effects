@@ -62,7 +62,7 @@ class test():
  ! autovideosink\
  tee.\
  ! queue\
- ! track mark=0 objects=1 bgcolor=0x7CA0D5 size=8 threshold=88 name=trk\
+ ! track replace=0 objects=1 bgcolor=0x7CA0D5 size=8 threshold=88 name=trk\
  ! videomixer2 name=mix\
  ! videocrop left=200 right=200 top=120 bottom=100\
  ! cairotextoverlay text=\"zoom to objects\"\
