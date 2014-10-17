@@ -200,6 +200,17 @@ gboolean matchAny (hkVidLayout *vl, int x, int y)
         matchColor(vl, x, y, vl->fgcolor1);
 }
 
+void toonify(hkVidLayout *vl, guint *rect)
+/* blur rect sz x sz average */
+{
+  for(int y=rect[3]; y > rect[1]; y-=1){
+    for(int x=rect[2]; x > rect[0]; x-=1){
+      if (matchAny(vl, x, y)) for (int k=3;k--;)
+        *(getPixel(vl, x, y, k)) = vl->bgcolor[k];
+    }
+  }
+}
+
 guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy)
 /* stretch the measuring tape across a color patch */
 {

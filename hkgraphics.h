@@ -42,6 +42,7 @@ void plotXY (hkVidLayout *vl, int x, int y, guint8 *color);
 void crosshairs(hkVidLayout *vl, guint *point, guint8 *color);
 void cloak(hkVidLayout *vl, guint *rect);
 void decimate(hkVidLayout *vl, guint *rect, guint8 sz);
+void toonify(hkVidLayout *vl, guint *rect);
 void blur(hkVidLayout *vl, guint *rect, guint8 sz);
 void box(hkVidLayout *vl, guint *rect, guint8 *color);
 guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color);

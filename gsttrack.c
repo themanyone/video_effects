@@ -132,8 +132,8 @@ static const GEnumValue repace_methods[] = {
   {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size", "sizeblur"},
   {GST_TRACK_REPLACE_METHOD_DECIMATE, "Decimate into squares",
       "decimate"},
-  {GST_TRACK_REPLACE_METHOD_HORIZ, "Flip horizontally", "horizontal-flip"},
-  {GST_TRACK_REPLACE_METHOD_VERT, "Flip vertically", "vertical-flip"},
+  {GST_TRACK_REPLACE_METHOD_TOONIFY, "Cartoon to bgcolor",
+      "toonify"},
   {0, NULL, NULL},
 };
 
@@ -487,6 +487,9 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
         break;
       case GST_TRACK_REPLACE_METHOD_DECIMATE:
         decimate(vl, prect, track->size);
+        break;
+      case GST_TRACK_REPLACE_METHOD_TOONIFY:
+        toonify(vl, prect);
         break;
       default:
         break;
