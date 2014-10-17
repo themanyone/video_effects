@@ -132,7 +132,7 @@ static const GEnumValue repace_methods[] = {
   {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size", "sizeblur"},
   {GST_TRACK_REPLACE_METHOD_DECIMATE, "Decimate into squares",
       "decimate"},
-  {GST_TRACK_REPLACE_METHOD_TOONIFY, "Cartoon to bgcolor",
+  {GST_TRACK_REPLACE_METHOD_TOONIFY, "Cartoon to fgcolor1",
       "toonify"},
   {0, NULL, NULL},
 };
@@ -211,7 +211,7 @@ gst_track_class_init (GstTrackClass * klass)
           "Object's Highlight or Text Color green=0x00ff00", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_FGCOLOR0,
+  g_object_class_install_property (gobject_class, PROP_FGCOLOR1,
       g_param_spec_uint ("fgcolor1", "Foreground Color 1",
           "Object's Spot or Outline Color blue=0x0000ff", 0, G_MAXUINT,
           DEFAULT_COLOR,

@@ -206,7 +206,7 @@ void toonify(hkVidLayout *vl, guint *rect)
   for(int y=rect[3]; y > rect[1]; y-=1){
     for(int x=rect[2]; x > rect[0]; x-=1){
       if (matchAny(vl, x, y)) for (int k=3;k--;)
-        *(getPixel(vl, x, y, k)) = vl->bgcolor[k];
+        *(getPixel(vl, x, y, k)) = vl->fgcolor1[k];
     }
   }
 }
