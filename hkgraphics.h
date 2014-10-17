@@ -27,7 +27,7 @@ typedef struct _hkVidLayout
   // 3 data areas (YUV or RGB)
   guint8 *data[3];
   guint stride[3], wscale[3], hscale[3];
-  guint width, height;
+  guint width, height, size;
   // tracking colors for getLength, getDiff, getBounds
   guint8 *bgcolor;
   guint8 *fgcolor0;
@@ -41,6 +41,8 @@ guint8 *getPixel(hkVidLayout *vl, int x, int y, guint8 layer);
 void plotXY (hkVidLayout *vl, int x, int y, guint8 *color);
 void crosshairs(hkVidLayout *vl, guint *point, guint8 *color);
 void cloak(hkVidLayout *vl, guint *rect);
+void decimate(hkVidLayout *vl, guint *rect, guint8 sz);
+void blur(hkVidLayout *vl, guint *rect, guint8 sz);
 void box(hkVidLayout *vl, guint *rect, guint8 *color);
 guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color);
 gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color);

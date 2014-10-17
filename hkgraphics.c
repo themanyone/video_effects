@@ -81,23 +81,64 @@ void crosshairs(hkVidLayout *vl, guint *point, guint8 *color)
 void cloak(hkVidLayout *vl, guint *rect)
 /* attempt to cloak rect from video */
 {
-  guint8 *fromleft, *fromright;
-  guint width = rect[2]-rect[0], w2 = width / 2;
+  guint8 *fromleft, *fromright, skip=0;
+  guint width = rect[2]-rect[0], w2 = width / 2 + 1,
+        height = rect[3]-rect[1];
+  if (rect[0]<w2 || rect[2] > vl->width - w2) skip=1;
   for(int y=rect[3]; y > rect[1] ; y--){
-    for(int x=rect[2]; x > rect[0] + w2; x--){
+    for(int x=w2; x--;){
       for (int k=3; k--;){
-        if (x < vl->width - w2){
-          fromright = getPixel(vl, x + w2, y, k);
+        if (skip) {
+          if (y > height){
+            fromright = getPixel(vl, rect[2] - x, y-height, k);
+            fromleft = getPixel(vl, rect[0] + x, y-height, k);
+          } else if (y < vl->height - height) {
+            fromright = getPixel(vl, rect[2] - x, y+height, k);
+            fromleft = getPixel(vl, rect[0] + x, y+height, k);
+          } else {
+            fromright = getPixel(vl, rect[2] - x, y, k);
+            fromleft = getPixel(vl, rect[0] + x, y, k);
+          }
         } else {
-          fromright = getPixel(vl, x - width, y, k);
+          fromright = getPixel(vl, rect[2] + x, y, k);
+          fromleft = getPixel(vl, rect[0] - x, y, k);
         }
-        if (x > width){
-          fromleft = getPixel(vl, x - width, y, k);
-        } else {
-          fromleft = getPixel(vl, x + w2, y, k);
+        *(getPixel(vl, rect[2] - x, y, k)) = *fromright;
+        *(getPixel(vl, rect[0] + x, y, k)) = *fromleft;
+      }
+    }
+  }
+}
+
+void blur(hkVidLayout *vl, guint *rect, guint8 sz)
+/* blur rect sz x sz average */
+{
+  guint t, n, k=0, s=sz/2 + 1;
+  for(int y=rect[3] - s; y > rect[1] + s; y--){
+    for(int x=rect[2] - s; x > rect[0] + s; x--){
+      t = n = 0;
+      for (int yy=y-s; yy<y+s; yy+=2){
+        for (int xx=x-s; xx<x+s; xx+=2){
+          t += *(getPixel(vl, xx, yy, k)), n++;
         }
-        *(getPixel(vl, x, y, k)) = *fromright;
-        *(getPixel(vl, x - w2, y, k)) = *fromleft;
+      }
+      *(getPixel(vl, x, y, k)) = t/n;
+    }
+  }
+}
+
+void decimate(hkVidLayout *vl, guint *rect, guint8 sz)
+/* blur rect sz x sz average */
+{
+  guint k=0;
+  if (rect[1] < sz || rect[0] < sz) return;
+  if (rect[3] > vl->width - sz || rect[2] > vl->width - sz) return;
+  for(int y=rect[3] - sz; y > rect[1]; y-=sz){
+    for(int x=rect[2] - sz; x > rect[0]; x-=sz){
+      for (int yy=y; yy < y+sz; yy++){
+        for (int xx=x; xx < x+sz; xx++){
+          *(getPixel(vl, xx, yy, k)) = *(getPixel(vl, x, y, k));
+        }
       }
     }
   }

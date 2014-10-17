@@ -128,7 +128,8 @@ static const GEnumValue repace_methods[] = {
   {GST_TRACK_REPLACE_METHOD_BOX, "Draw box", "box"},
   {GST_TRACK_REPLACE_METHOD_BOTH, "Both 1 and 2", "both"},
   {GST_TRACK_REPLACE_METHOD_CLOAK, "Cloaking device", "cloak"},
-  {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size average", "blur"},
+  {GST_TRACK_REPLACE_METHOD_BLUR8, "Blur, 8 x 8 average", "blur"},
+  {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size", "sizeblur"},
   {GST_TRACK_REPLACE_METHOD_DECIMATE, "Decimate into squares",
       "decimate"},
   {GST_TRACK_REPLACE_METHOD_HORIZ, "Flip horizontally", "horizontal-flip"},
@@ -477,6 +478,15 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
         break;
       case GST_TRACK_REPLACE_METHOD_CLOAK:
         cloak(vl, prect);
+        break;
+      case GST_TRACK_REPLACE_METHOD_BLUR:
+        blur(vl, prect, track->size);
+        break;
+      case GST_TRACK_REPLACE_METHOD_BLUR8:
+        blur(vl, prect, 8);
+        break;
+      case GST_TRACK_REPLACE_METHOD_DECIMATE:
+        decimate(vl, prect, track->size);
         break;
       default:
         break;
