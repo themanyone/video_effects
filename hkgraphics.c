@@ -131,13 +131,13 @@ void decimate(hkVidLayout *vl, guint *rect, guint8 sz)
 /* blur rect sz x sz average */
 {
   guint k=0;
-  if (rect[1] < sz || rect[0] < sz) return;
-  if (rect[3] > vl->width - sz || rect[2] > vl->width - sz) return;
   for(int y=rect[3] - sz; y > rect[1]; y-=sz){
+    if (y<0 || y > vl->height - sz) break;
     for(int x=rect[2] - sz; x > rect[0]; x-=sz){
-      for (int yy=y; yy < y+sz; yy++){
-        for (int xx=x; xx < x+sz; xx++){
-          *(getPixel(vl, xx, yy, k)) = *(getPixel(vl, x, y, k));
+      if (x<0 || x>vl->width - sz) break;
+      for (int yy=sz;yy--;){
+        for (int xx=sz;xx--;){
+          *(getPixel(vl, x+xx, y+yy, k)) = *(getPixel(vl, x, y, k));
         }
       }
     }
@@ -200,13 +200,13 @@ gboolean matchAny (hkVidLayout *vl, int x, int y)
         matchColor(vl, x, y, vl->fgcolor1);
 }
 
-void toonify(hkVidLayout *vl, guint *rect)
-/* blur rect sz x sz average */
+void colorize(hkVidLayout *vl, guint *rect, guint8* color)
+/* colorize rect to color */
 {
   for(int y=rect[3]; y > rect[1]; y-=1){
     for(int x=rect[2]; x > rect[0]; x-=1){
-      if (matchAny(vl, x, y)) for (int k=3;k--;)
-        *(getPixel(vl, x, y, k)) = vl->fgcolor1[k];
+      if (matchAny(vl, x, y)) for (int k=2; k>0;k--)
+        *(getPixel(vl, x, y, k)) = color[k];
     }
   }
 }

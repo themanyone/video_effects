@@ -120,29 +120,29 @@ static GstVideoFilter2Functions gst_track_filter_functions[];
   GST_DEBUG_CATEGORY_INIT (gst_track_debug_category, "track", 0, \
       "debug category for track element");
 
-#define GST_TYPE_TRACK_REPLACE_METHOD (gst_track_replace_method_get_type())
+#define GST_TYPE_TRACK_MARK_METHOD (gst_track_mark_method_get_type())
 
 static const GEnumValue repace_methods[] = {
-  {GST_TRACK_REPLACE_METHOD_NOTHING, "Do nothing", "nothing"},
-  {GST_TRACK_REPLACE_METHOD_CROSSHAIRS, "Mark with crosshairs", "crosshairs"},
-  {GST_TRACK_REPLACE_METHOD_BOX, "Draw box", "box"},
-  {GST_TRACK_REPLACE_METHOD_BOTH, "Both 1 and 2", "both"},
-  {GST_TRACK_REPLACE_METHOD_CLOAK, "Cloaking device", "cloak"},
-  {GST_TRACK_REPLACE_METHOD_BLUR8, "Blur, 8 x 8 average", "blur"},
-  {GST_TRACK_REPLACE_METHOD_BLUR, "Blur, size x size", "sizeblur"},
-  {GST_TRACK_REPLACE_METHOD_DECIMATE, "Decimate into squares",
+  {GST_TRACK_MARK_METHOD_NOTHING, "Do nothing", "nothing"},
+  {GST_TRACK_MARK_METHOD_CROSSHAIRS, "Mark with crosshairs", "crosshairs"},
+  {GST_TRACK_MARK_METHOD_BOX, "Draw box", "box"},
+  {GST_TRACK_MARK_METHOD_BOTH, "Both 1 and 2", "both"},
+  {GST_TRACK_MARK_METHOD_CLOAK, "Cloaking device", "cloak"},
+  {GST_TRACK_MARK_METHOD_BLUR8, "Blur, 8 x 8 average", "blur"},
+  {GST_TRACK_MARK_METHOD_BLUR, "Blur, size x size", "sizeblur"},
+  {GST_TRACK_MARK_METHOD_DECIMATE, "Obscure (decimate, blocks)",
       "decimate"},
-  {GST_TRACK_REPLACE_METHOD_TOONIFY, "Cartoon to fgcolor1",
-      "toonify"},
+  {GST_TRACK_MARK_METHOD_COLORIZE, "Colorize to marker color",
+      "colorize"},
   {0, NULL, NULL},
 };
 
 static GType
-gst_track_replace_method_get_type (void)
+gst_track_mark_method_get_type (void)
 {
   static GType repace_method_type = 0;
   if (!repace_method_type) {
-    repace_method_type = g_enum_register_static ("GstTrackReplaceMethod",
+    repace_method_type = g_enum_register_static ("GstTrackMarkMethod",
         repace_methods);
   }
   return repace_method_type;
@@ -182,9 +182,9 @@ gst_track_class_init (GstTrackClass * klass)
       g_param_spec_boolean ("message", "message",
           "Post a message for each tracked object",
         DEFAULT_MESSAGE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  g_object_class_install_property (gobject_class, PROP_REPLACE_METHOD,
-      g_param_spec_enum ("replace", "Replace Method", "What to replace tracked objects with",
-          GST_TYPE_TRACK_REPLACE_METHOD, DEFAULT_REPLACE_METHOD,
+  g_object_class_install_property (gobject_class, PROP_MARK_METHOD,
+      g_param_spec_enum ("mark", "Mark Method", "Method for marking tracked objects",
+          GST_TYPE_TRACK_MARK_METHOD, DEFAULT_MARK_METHOD,
           GST_PARAM_CONTROLLABLE | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_THRESHOLD,
       g_param_spec_uint ("threshold", "Threshold",
@@ -203,18 +203,23 @@ gst_track_class_init (GstTrackClass * klass)
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_BGCOLOR,
       g_param_spec_uint ("bgcolor", "Background Color",
-          "Object's Main or Background Color red=0xff0000", 0, G_MAXUINT,
+          "Object's Main or Background Color RGB red=0xff0000", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR0,
       g_param_spec_uint ("fgcolor0", "Foreground Color 0",
-          "Object's Highlight or Text Color green=0x00ff00", 0, G_MAXUINT,
+          "Object's Highlight or Text Color RGB green=0x00ff00", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR1,
       g_param_spec_uint ("fgcolor1", "Foreground Color 1",
-          "Object's Spot or Outline Color blue=0x0000ff", 0, G_MAXUINT,
+          "Object's Spot or Outline Color RGB blue=0x0000ff", 0, G_MAXUINT,
           DEFAULT_COLOR,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (gobject_class, PROP_MCOLOR,
+      g_param_spec_uint ("mcolor", "Marker Color",
+          "Marker color RGB white=0xffffff", 0, G_MAXUINT,
+          WHITE,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   gst_video_filter2_class_add_functions (video_filter2_class,
@@ -229,9 +234,10 @@ gst_track_init (GstTrack * track,
   track->bgcolor = DEFAULT_COLOR;
   track->fgcolor0 = DEFAULT_COLOR;
   track->fgcolor1 = DEFAULT_COLOR;
+  track->mcolor = WHITE;
   track->threshold = DEFAULT_THRESHOLD;
   track->max_objects = DEFAULT_MAX_OBJECTS;
-  track->replace_method = DEFAULT_REPLACE_METHOD;
+  track->mark_method = DEFAULT_MARK_METHOD;
   track->obj_count = 0;
   for (int obj=MAX_OBJECTS; obj--;)
     track->obj_found[obj][3] = 0;
@@ -264,14 +270,18 @@ gst_track_set_property (GObject * object, guint property_id,
       track->fgcolor1 = g_value_get_uint(value);
       rgb2yuv(track->fgcolor1, track->fgyuv1);
       break;
+    case PROP_MCOLOR:
+      track->mcolor = g_value_get_uint(value);
+      rgb2yuv(track->mcolor, track->mcyuv);
+      break;
     case PROP_THRESHOLD:
       track->threshold = g_value_get_uint(value);
       break;
     case PROP_MAX_OBJECTS:
       track->max_objects = g_value_get_uint(value);
       break;
-    case PROP_REPLACE_METHOD:
-      track->replace_method = g_value_get_enum(value);
+    case PROP_MARK_METHOD:
+      track->mark_method = g_value_get_enum(value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -304,14 +314,17 @@ gst_track_get_property (GObject * object, guint property_id,
     case PROP_FGCOLOR1:
       g_value_set_uint (value, track->fgcolor1);
       break;
+    case PROP_MCOLOR:
+      g_value_set_uint (value, track->mcolor);
+      break;
     case PROP_THRESHOLD:
       g_value_set_uint (value, track->threshold);
       break;
     case PROP_MAX_OBJECTS:
       g_value_set_uint (value, track->max_objects);
       break;
-    case PROP_REPLACE_METHOD:
-      g_value_set_enum (value, track->replace_method);
+    case PROP_MARK_METHOD:
+      g_value_set_enum (value, track->mark_method);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -454,42 +467,40 @@ static void track_objects(GstTrack *track, hkVidLayout *vl)
 }
 
 static void report_objects(GstTrack *track, hkVidLayout *vl)
-/* report object count, locations, optionally replace */
+/* report object count, locations, optionally mark */
 {
   GstStructure *s;
-  guint8 mcolor[3];
+  guint8 *mcolor = track->mcyuv;
   guint *prect, *center, obj = 0;
-  // mix up some white paint, for optional markers
-  rgb2yuv(0xffffff, mcolor);
   for (int c=track->obj_count; c--;){
     do {
       if (track->obj_found[obj][3]) break;
       obj++;
     } while (1);
     prect = track->obj_found[obj], center = &track->obj_found[obj][4];
-    switch (track->replace_method){
-      case GST_TRACK_REPLACE_METHOD_BOX:
+    switch (track->mark_method){
+      case GST_TRACK_MARK_METHOD_BOX:
         box(vl, prect, mcolor);
         break;
-      case GST_TRACK_REPLACE_METHOD_BOTH:
+      case GST_TRACK_MARK_METHOD_BOTH:
         box(vl, prect, mcolor);
-      case GST_TRACK_REPLACE_METHOD_CROSSHAIRS:
+      case GST_TRACK_MARK_METHOD_CROSSHAIRS:
         crosshairs(vl, center, mcolor);
         break;
-      case GST_TRACK_REPLACE_METHOD_CLOAK:
+      case GST_TRACK_MARK_METHOD_CLOAK:
         cloak(vl, prect);
         break;
-      case GST_TRACK_REPLACE_METHOD_BLUR:
+      case GST_TRACK_MARK_METHOD_BLUR:
         blur(vl, prect, track->size);
         break;
-      case GST_TRACK_REPLACE_METHOD_BLUR8:
+      case GST_TRACK_MARK_METHOD_BLUR8:
         blur(vl, prect, 8);
         break;
-      case GST_TRACK_REPLACE_METHOD_DECIMATE:
+      case GST_TRACK_MARK_METHOD_DECIMATE:
         decimate(vl, prect, track->size);
         break;
-      case GST_TRACK_REPLACE_METHOD_TOONIFY:
-        toonify(vl, prect);
+      case GST_TRACK_MARK_METHOD_COLORIZE:
+        colorize(vl, prect, mcolor);
         break;
       default:
         break;

@@ -27,34 +27,39 @@ enum
 {
   PROP_0,
   PROP_MESSAGE,
-  PROP_REPLACE_METHOD,
+  PROP_MARK_METHOD,
   PROP_SIZE,
   PROP_BGCOLOR,
   PROP_FGCOLOR0,
   PROP_FGCOLOR1,
+  PROP_MCOLOR,
   PROP_THRESHOLD,
   PROP_MAX_OBJECTS,
 };
 
 typedef enum {
-  GST_TRACK_REPLACE_METHOD_NOTHING,
-  GST_TRACK_REPLACE_METHOD_CROSSHAIRS,
-  GST_TRACK_REPLACE_METHOD_BOX,
-  GST_TRACK_REPLACE_METHOD_BOTH,
-  GST_TRACK_REPLACE_METHOD_CLOAK,
-  GST_TRACK_REPLACE_METHOD_BLUR,
-  GST_TRACK_REPLACE_METHOD_BLUR8,
-  GST_TRACK_REPLACE_METHOD_DECIMATE,
-  GST_TRACK_REPLACE_METHOD_TOONIFY,
-} GstTrackReplaceMethod;
+  GST_TRACK_MARK_METHOD_NOTHING,
+  GST_TRACK_MARK_METHOD_CROSSHAIRS,
+  GST_TRACK_MARK_METHOD_BOX,
+  GST_TRACK_MARK_METHOD_BOTH,
+  GST_TRACK_MARK_METHOD_CLOAK,
+  GST_TRACK_MARK_METHOD_BLUR,
+  GST_TRACK_MARK_METHOD_BLUR8,
+  GST_TRACK_MARK_METHOD_DECIMATE,
+  GST_TRACK_MARK_METHOD_COLORIZE,
+} GstTrackMarkMethod;
 
+#define RED   0xff0000
+#define BLUE  0x00ff00
+#define GREEN 0x0000ff
+#define WHITE 0x0ffffff
 #define DEFAULT_MESSAGE TRUE
 #define DEFAULT_THRESHOLD 88
 #define DEFAULT_SIZE 20
 #define DEFAULT_MAX_OBJECTS 1
 #define DEFAULT_COLOR 0xFF0000
 #define MAX_OBJECTS 1024
-#define DEFAULT_REPLACE_METHOD GST_TRACK_REPLACE_METHOD_BOTH
+#define DEFAULT_MARK_METHOD GST_TRACK_MARK_METHOD_BOTH
 
 G_BEGIN_DECLS
 
@@ -74,15 +79,17 @@ typedef struct _GstTrack
   guint bgcolor;                /* object color to track */
   guint fgcolor0;               /* object highlight or text */
   guint fgcolor1;               /* object spot or outline */
+  guint mcolor;                 /* marker color */
   guint threshold;              /* color tracking threshold */
   guint max_objects;            /* number of objects to track */
-  guint replace_method;         /* object replacement method */
+  guint mark_method;            /* mark method */
 
   /* state */
   guint *rect;                  /* bounding box of tracked object */
   guint8 bgyuv[3];              /* background color YUV */
   guint8 fgyuv0[3];
   guint8 fgyuv1[3];
+  guint8 mcyuv[3];
   guint obj_found[MAX_OBJECTS][6]; /* array of found objects */
   guint obj_count;
 } GstTrack;
