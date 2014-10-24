@@ -38,6 +38,7 @@ guint8* rgb2yuv (guint rgb, guint8 *yuv)
 
 guint8 *getPixel(hkVidLayout *vl, int x, int y, guint8 layer)
 /* returns pixel data location at x, y, layer */
+/* caution: no bounds checking */
 {
   guint8 *pixel;
   pixel = vl->data[layer] + y/vl->hscale[layer] * vl->stride[layer]
@@ -113,16 +114,91 @@ void cloak(hkVidLayout *vl, guint *rect)
 void blur(hkVidLayout *vl, guint *rect, guint8 sz)
 /* blur rect sz x sz average */
 {
-  guint t, n, k=0, s=sz/2 + 1;
-  for(int y=rect[3] - s; y > rect[1] + s; y--){
-    for(int x=rect[2] - s; x > rect[0] + s; x--){
-      t = n = 0;
-      for (int yy=y-s; yy<y+s; yy+=2){
-        for (int xx=x-s; xx<x+s; xx+=2){
-          t += *(getPixel(vl, xx, yy, k)), n++;
-        }
+  guint t, s=sz/2, u=s/2;
+  guint8 *p;
+  for(int y=rect[3]; y > rect[1]; y--){
+    if (y < s || y >= vl->height - s) break;
+    for(int x=rect[2]; x > rect[0]; x--){
+      if (x < s || x >= vl->width - s) break;
+      for(int k=3;k--;){
+        t  = *(getPixel(vl, x-s, y-s, k));
+        t += *(getPixel(vl, x+s, y-s, k));
+        t += *(getPixel(vl, x-s, y+s, k));
+        t += *(getPixel(vl, x+s, y+s, k));
+        t += *(getPixel(vl, x-u, y, k));
+        t += *(getPixel(vl, x+u, y, k));
+        t += *(getPixel(vl, x, y-u, k));
+        t += *(getPixel(vl, x, y+u, k));
+        p = getPixel(vl, x, y, k);
+        *p = t>>3;
       }
-      *(getPixel(vl, x, y, k)) = t/n;
+    }
+  }
+}
+
+void outline(hkVidLayout *vl, guint *rect, guint8 *color)
+/* draw edges to color */
+{
+  #define LIM 5000
+  gboolean plot, match;
+  gint xa[LIM + 1], ya[LIM + 1], i=0,
+    xs = rect[2] + 2, ys = rect[3] + 2,
+    xe = rect[0] - 2, ye = rect[1] - 2;
+  if (xs >= vl->width) xs = vl->width - 1;
+  if (ys >= vl->height)ys = vl->height - 1;
+  if (ye < 0) ye = 0;
+  if (xe < 0) xe = 0;
+  for(int y=ys; y > ye; y--){
+    plot = FALSE;
+    for(int x=xs; x > xe; x-=2){
+      match = matchAny(vl, x, y);
+      if (match != plot || match != matchAny(vl, x, y - 1))
+        xa[i]=x, ya[i++]=y;
+      if (i == LIM) break;
+      plot = match;
+    } if (i == LIM) break;
+  }
+  while(i--){ 
+    plotXY(vl,xa[i],ya[i],color);
+    plotXY(vl,xa[i]-1,ya[i],color);
+  }
+  #undef LIM
+}
+
+void edge(hkVidLayout *vl, guint *rect, guint8 *color)
+/* edge detection */
+{
+  gint v, t, k=0, xs = rect[2] + 4, ys = rect[3] + 4,
+    xe = rect[0] - 4, ye = rect[1] - 4, diff;
+  gboolean mark = FALSE, trail = FALSE;
+  if (xs >= vl->width) xs = vl->width - 2;
+  if (ys >= vl->height)ys = vl->height - 2;
+  if (ye < 1) ye = 1;
+  if (xe < 1) xe = 1;
+  for(int y=ys; y > ye; y--){
+    for(int x=xs; x > xe; x--){
+      t = v = 0;
+      //vertical
+      for(int i=3;i--;){
+        t += *(getPixel(vl, x-1, y-i, k));
+        v += *(getPixel(vl, x-2, y-i, k));
+      }
+      diff = abs(t - v), mark = FALSE;
+      if (diff > 20 && trail) mark = TRUE;
+      if (diff > 40) mark = TRUE;
+      t = v = 0;
+      //horizontal
+      for(int i=3;i--;){
+        t += *(getPixel(vl, x-i, y-1, k));
+        v += *(getPixel(vl, x-i, y-2, k));
+      }
+      diff = abs(t - v);
+      if (diff > 20 && trail) mark = TRUE;
+      if (diff > 40) mark = TRUE;
+      if (mark) plotXY(vl, x, y, color);
+      trail = mark || *(getPixel(vl, x, y+1, k)) == color[0]
+        || *(getPixel(vl, x-1, y+1, k)) == color[0]
+        || *(getPixel(vl, x+1, y+1, k)) == color[0];
     }
   }
 }
@@ -203,8 +279,8 @@ gboolean matchAny (hkVidLayout *vl, int x, int y)
 void colorize(hkVidLayout *vl, guint *rect, guint8* color)
 /* colorize rect to color */
 {
-  for(int y=rect[3]; y > rect[1]; y-=1){
-    for(int x=rect[2]; x > rect[0]; x-=1){
+  for(int y=rect[3]; y > rect[1]; y--){
+    for(int x=rect[2]; x > rect[0]; x--){
       if (matchAny(vl, x, y)) for (int k=2; k>0;k--)
         *(getPixel(vl, x, y, k)) = color[k];
     }

@@ -44,12 +44,13 @@ void cloak(hkVidLayout *vl, guint *rect);
 void decimate(hkVidLayout *vl, guint *rect, guint8 sz);
 void colorize(hkVidLayout *vl, guint *rect, guint8* color);
 void blur(hkVidLayout *vl, guint *rect, guint8 sz);
+void edge(hkVidLayout *vl, guint *rect, guint8 *color);
+void outline(hkVidLayout *vl, guint *rect, guint8 *color);
 void box(hkVidLayout *vl, guint *rect, guint8 *color);
 guint8* colorAt (hkVidLayout *vl, int x, int y, guint8 *color);
 gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color);
 gboolean matchAny (hkVidLayout *vl, int x, int y);
 guint* getLength(hkVidLayout *vl, int x, int y, int dx, int dy);
-void markBounds(hkVidLayout *vl, guint *rect, guint size);
 guint* getBounds(hkVidLayout *vl, int x, int y, guint *rect);
 guint *rectCenter(guint *rect);
 

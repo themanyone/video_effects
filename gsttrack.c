@@ -132,6 +132,8 @@ static const GEnumValue repace_methods[] = {
   {GST_TRACK_MARK_METHOD_BLUR, "Blur, size x size", "sizeblur"},
   {GST_TRACK_MARK_METHOD_DECIMATE, "Obscure (decimate, blocks)",
       "decimate"},
+  {GST_TRACK_MARK_METHOD_EDGE, "Edge detect", "edge"},
+  {GST_TRACK_MARK_METHOD_OUTLINE, "Color outlines", "outline"},
   {GST_TRACK_MARK_METHOD_COLORIZE, "Colorize to marker color",
       "colorize"},
   {0, NULL, NULL},
@@ -219,7 +221,7 @@ gst_track_class_init (GstTrackClass * klass)
   g_object_class_install_property (gobject_class, PROP_MCOLOR,
       g_param_spec_uint ("mcolor", "Marker Color",
           "Marker color RGB white=0xffffff", 0, G_MAXUINT,
-          WHITE,
+          GREEN,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   gst_video_filter2_class_add_functions (video_filter2_class,
@@ -234,7 +236,7 @@ gst_track_init (GstTrack * track,
   track->bgcolor = DEFAULT_COLOR;
   track->fgcolor0 = DEFAULT_COLOR;
   track->fgcolor1 = DEFAULT_COLOR;
-  track->mcolor = WHITE;
+  track->mcolor = GREEN;
   track->threshold = DEFAULT_THRESHOLD;
   track->max_objects = DEFAULT_MAX_OBJECTS;
   track->mark_method = DEFAULT_MARK_METHOD;
@@ -387,6 +389,7 @@ static void hkgraphics_init (GstTrack *track, hkVidLayout *vl, GstBuffer *buf)
 
 static gboolean is_reject(GstTrack *track, guint *rect, guint obj)
 {
+  gint sz = track->size;
   gboolean reject = FALSE;
   // too small?
   if (rect[2]-rect[0] < track->size
@@ -396,8 +399,11 @@ static gboolean is_reject(GstTrack *track, guint *rect, guint obj)
   // already detected?
   for (int o=MAX_OBJECTS; o--;){
     if (o==obj || !track->obj_found[o][3]) continue;
-    if (track->obj_found[o][0]==rect[0]
-      && track->obj_found[o][1]==rect[1]){ 
+    if (track->obj_found[o][0]>=rect[0]-sz
+      && track->obj_found[o][1]>=rect[1]-sz
+      && track->obj_found[o][2]<=rect[2]+sz
+      && track->obj_found[o][3]<=rect[3]+sz
+    ){ 
         reject = TRUE;
         break;
     }
@@ -496,6 +502,12 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
       case GST_TRACK_MARK_METHOD_BLUR8:
         blur(vl, prect, 8);
         break;
+      case GST_TRACK_MARK_METHOD_EDGE:
+        edge(vl, prect, mcolor);
+        break;
+      case GST_TRACK_MARK_METHOD_OUTLINE:
+        outline(vl, prect, mcolor);
+        break;
       case GST_TRACK_MARK_METHOD_DECIMATE:
         decimate(vl, prect, track->size);
         break;
@@ -506,7 +518,6 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
         break;
     }
     if (track->message){
-      //~ numstr = g_strdup_printf("track[%i]",track->obj_count);
       s = gst_structure_new ("track",
       "count", G_TYPE_UINT, track->obj_count,
       "object", G_TYPE_UINT, obj,
@@ -519,7 +530,6 @@ static void report_objects(GstTrack *track, hkVidLayout *vl)
         NULL);
       gst_element_post_message (GST_ELEMENT_CAST (track),
         gst_message_new_element (GST_OBJECT_CAST (track), s));
-      //~ g_free(numstr);
     }
     obj++;
   }
