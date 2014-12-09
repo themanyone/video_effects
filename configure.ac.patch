@@ -1,0 +1,18 @@
+--- configure.ac.bak	2014-12-08 17:53:08.645475242 -0800
++++ configure.ac	2014-12-08 17:54:04.792402459 -0800
+@@ -329,6 +329,7 @@
+ AG_GST_CHECK_PLUGIN(geometrictransform)
+ AG_GST_CHECK_PLUGIN(h264parse)
+ AG_GST_CHECK_PLUGIN(hdvparse)
++AG_GST_CHECK_PLUGIN(hkeffects)
+ AG_GST_CHECK_PLUGIN(hls)
+ AG_GST_CHECK_PLUGIN(id3tag)
+ AG_GST_CHECK_PLUGIN(inter)
+@@ -1936,6 +1937,7 @@
+ gst/geometrictransform/Makefile
+ gst/h264parse/Makefile
+ gst/hdvparse/Makefile
++gst/hkeffects/Makefile
+ gst/hls/Makefile
+ gst/id3tag/Makefile
+ gst/inter/Makefile
