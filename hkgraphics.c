@@ -271,9 +271,9 @@ gboolean matchColor (hkVidLayout *vl, int x, int y, guint8 *color)
 gboolean matchAny (hkVidLayout *vl, int x, int y)
 /* check if any color matches that at x,y and vl->threshold */
 {
-  return matchColor(vl, x, y, vl->bgcolor) || 
-        matchColor(vl, x, y, vl->fgcolor0) ||
-        matchColor(vl, x, y, vl->fgcolor1);
+  return matchColor(vl, x, y, vl->color0) || 
+        matchColor(vl, x, y, vl->color1) ||
+        matchColor(vl, x, y, vl->color2);
 }
 
 void colorize(hkVidLayout *vl, guint *rect, guint8* color)

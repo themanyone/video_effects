@@ -33,6 +33,9 @@ plugin_init (GstPlugin * plugin)
   gst_element_register (plugin, "track", GST_RANK_NONE,
       gst_track_get_type ());
 
+  gst_element_register (plugin, "motrack", GST_RANK_NONE,
+      gst_motrack_get_type ());
+
   return TRUE;
 }
 

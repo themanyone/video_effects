@@ -78,9 +78,9 @@ typedef struct _GstTrack
   /* properties */
   gboolean message;             /* whether to post messages */
   guint size;                   /* minimum detection size */
-  guint bgcolor;                /* object color to track */
-  guint fgcolor0;               /* object highlight or text */
-  guint fgcolor1;               /* object spot or outline */
+  guint color0;                /* object color to track */
+  guint color1;               /* object highlight or text */
+  guint color2;               /* object spot or outline */
   guint mcolor;                 /* marker color */
   guint threshold;              /* color tracking threshold */
   guint max_objects;            /* number of objects to track */

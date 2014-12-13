@@ -29,9 +29,9 @@ typedef struct _hkVidLayout
   guint stride[3], wscale[3], hscale[3];
   guint width, height, size;
   // tracking colors for getLength, getDiff, getBounds
-  guint8 *bgcolor;
-  guint8 *fgcolor0;
-  guint8 *fgcolor1;
+  guint8 *color0;
+  guint8 *color1;
+  guint8 *color2;
   guint threshold;
   // todo: use this struct to reduce number of func args
 } hkVidLayout;

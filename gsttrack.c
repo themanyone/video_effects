@@ -204,17 +204,17 @@ gst_track_class_init (GstTrackClass * klass)
           DEFAULT_SIZE,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_BGCOLOR,
-      g_param_spec_uint ("bgcolor", "Background Color",
+      g_param_spec_uint ("color0", "Background Color",
           "Object's Main or Background Color RGB red=0xff0000", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR0,
-      g_param_spec_uint ("fgcolor0", "Foreground Color 0",
+      g_param_spec_uint ("color1", "Foreground Color 0",
           "Object's Highlight or Text Color RGB green=0x00ff00", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
   g_object_class_install_property (gobject_class, PROP_FGCOLOR1,
-      g_param_spec_uint ("fgcolor1", "Foreground Color 1",
+      g_param_spec_uint ("color2", "Foreground Color 1",
           "Object's Spot or Outline Color RGB blue=0x0000ff", 0, G_MAXUINT,
           DEFAULT_COLOR,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
@@ -233,9 +233,9 @@ gst_track_init (GstTrack * track,
     GstTrackClass * track_class)
 {
   track->message = DEFAULT_MESSAGE;
-  track->bgcolor = DEFAULT_COLOR;
-  track->fgcolor0 = DEFAULT_COLOR;
-  track->fgcolor1 = DEFAULT_COLOR;
+  track->color0 = DEFAULT_COLOR;
+  track->color1 = DEFAULT_COLOR;
+  track->color2 = DEFAULT_COLOR;
   track->mcolor = GREEN;
   track->threshold = DEFAULT_THRESHOLD;
   track->max_objects = DEFAULT_MAX_OBJECTS;
@@ -261,16 +261,16 @@ gst_track_set_property (GObject * object, guint property_id,
       track->size = g_value_get_uint(value);
       break;
     case PROP_BGCOLOR:
-      track->bgcolor = g_value_get_uint(value);
-      rgb2yuv(track->bgcolor, track->bgyuv);
+      track->color0 = g_value_get_uint(value);
+      rgb2yuv(track->color0, track->bgyuv);
       break;
     case PROP_FGCOLOR0:
-      track->fgcolor0 = g_value_get_uint(value);
-      rgb2yuv(track->fgcolor0, track->fgyuv0);
+      track->color1 = g_value_get_uint(value);
+      rgb2yuv(track->color1, track->fgyuv0);
       break;
     case PROP_FGCOLOR1:
-      track->fgcolor1 = g_value_get_uint(value);
-      rgb2yuv(track->fgcolor1, track->fgyuv1);
+      track->color2 = g_value_get_uint(value);
+      rgb2yuv(track->color2, track->fgyuv1);
       break;
     case PROP_MCOLOR:
       track->mcolor = g_value_get_uint(value);
@@ -308,13 +308,13 @@ gst_track_get_property (GObject * object, guint property_id,
       g_value_set_uint (value, track->size);
       break;
     case PROP_BGCOLOR:
-      g_value_set_uint (value, track->bgcolor);
+      g_value_set_uint (value, track->color0);
       break;
     case PROP_FGCOLOR0:
-      g_value_set_uint (value, track->fgcolor0);
+      g_value_set_uint (value, track->color1);
       break;
     case PROP_FGCOLOR1:
-      g_value_set_uint (value, track->fgcolor1);
+      g_value_set_uint (value, track->color2);
       break;
     case PROP_MCOLOR:
       g_value_set_uint (value, track->mcolor);
@@ -372,9 +372,9 @@ static void hkgraphics_init (GstTrack *track, hkVidLayout *vl, GstBuffer *buf)
   vl->width = GST_VIDEO_FILTER2_WIDTH (track),
   vl->height = GST_VIDEO_FILTER2_HEIGHT (track),
   vl->threshold = track->threshold,
-  vl->bgcolor = track->bgyuv,
-  vl->fgcolor0 = track->fgyuv0;
-  vl->fgcolor1 = track->fgyuv1;
+  vl->color0 = track->bgyuv,
+  vl->color1 = track->fgyuv0;
+  vl->color2 = track->fgyuv1;
   for (int i=3;i--;){
     vl->data[i] = gdata + gst_video_format_get_component_offset
       (format, i, vl->width, vl->height);
