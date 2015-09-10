@@ -24,6 +24,7 @@
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
 #include "gsttrack.h"
+#include "gstmotrack.h"
 
 
 static gboolean

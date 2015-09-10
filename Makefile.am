@@ -9,6 +9,7 @@ libgsthkeffects_la_SOURCES = \
     hkgraphics.c \
     hkgraphics.h \
 	gsttrack.c \
+    gstmotrack.c \
 	gsthkeffects.c
 #nodist_libgsthkeffects_la_SOURCES = $(ORC_NODIST_SOURCES)
 libgsthkeffects_la_CFLAGS = \
@@ -26,7 +27,8 @@ libgsthkeffects_la_LIBTOOLFLAGS = --tag=disable-static
 
 noinst_HEADERS = \
     hkgraphics.h \
-    gsttrack.h
+    gsttrack.h \
+    gstmotrack.h
 
 Android.mk: Makefile.am $(BUILT_SOURCES)
 	androgenizer \
