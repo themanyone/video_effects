@@ -6,3 +6,5 @@ Team Tracker
  * tones, and pays less attention to shading and bad lighting.
  * During each frame, if the #GstTrack:message property is #TRUE,
  * track emits an element message for each video frame.
+
+See updated docs at http://thenerdshow.com/motion%20tracking.html
